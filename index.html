@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Quick start. Local static application</title>
+    <style>
+        .entity-container {
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+
+        .entity-container h2 {
+            margin-top: 0;
+        }
+
+        .entity-container p {
+            margin: 0;
+        }
+
+        .entity-container hr {
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="name"></div>
+
+    <script src="//api.bitrix24.com/api/v1/"></script>
+    <script>
+        BX24.init(function () {
+            var totalIterations = 50;
+            var dataByEntityId = {};
+            var fullName; // перемещаем определение переменной fullName сюда
+
+            for (var i = 0; i < totalIterations; i++) {
+                BX24.callMethod(
+                    "crm.timeline.comment.list",
+                    {
+                        filter: {
+                            "ENTITY_ID": i,
+                            "ENTITY_TYPE": "deal",
+                        },
+                        select: ["ID", "COMMENT", "CREATED", "ENTITY_ID", "AUTHOR_ID"]
+                    },
+                    function (result) {
+                        if (result.error())
+                            console.error(result.error());
+                        else {
+                            var data = result.data();
+
+                            if (data && data.length > 0) {
+                                for (var j = 0; j < data.length; j++) {
+                                    var entityId = data[j].ENTITY_ID;
+                                    if (!dataByEntityId[entityId]) {
+                                        dataByEntityId[entityId] = [];
+                                    }
+                                    dataByEntityId[entityId].push(data[j]);
+                                }
+                            }
+
+                            if (result.more())
+                                result.next();
+
+                            renderData();
+                        }
+                    }
+                );
+            }
+
+            BX24.callMethod('user.get', { "ID": 1 },
+                function (result) {
+                    if (result.error())
+                        console.error(result.error());
+                    else {
+                        var userData = result.data()[0];
+                        var userLastname = userData.LAST_NAME;
+                        var userName = userData.NAME;
+                        fullName = userLastname + " " + userName;
+                        console.log("Full Name: " + fullName);
+                        if (result.more())
+                            result.next();
+                    }
+                }
+            );
+
+            function renderData() {
+                var container = document.getElementById("name");
+                container.innerHTML = "";
+
+                for (var entityId in dataByEntityId) {
+                    if (dataByEntityId.hasOwnProperty(entityId)) {
+                        var entityData = dataByEntityId[entityId];
+
+                        var entityContainer = document.createElement("div");
+                        entityContainer.classList.add("entity-container");
+
+                        var entityIdHeader = document.createElement("h2");
+                        entityIdHeader.textContent = "Entity ID: " + entityId;
+                        entityContainer.appendChild(entityIdHeader);
+
+                        for (var k = 0; k < entityData.length; k++) {
+                            var comment = entityData[k].COMMENT;
+                            var created = entityData[k].CREATED;
+                            var authorId = entityData[k].AUTHOR_ID;
+
+                            var commentElement = document.createElement("p");
+                            commentElement.textContent = "Comment: " + comment;
+
+                            var createdElement = document.createElement("p");
+                            createdElement.textContent = "Created: " + created;
+
+                            var authorIdElement = document.createElement("p");
+                            authorIdElement.textContent = "Author ID: " + fullName;
+
+                            entityContainer.appendChild(commentElement);
+                            entityContainer.appendChild(createdElement);
+                            entityContainer.appendChild(authorIdElement);
+                        }
+
+                        container.appendChild(entityContainer);
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
